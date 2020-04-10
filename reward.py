@@ -10,7 +10,7 @@ def reward_function(params):
      ## initialize constants
     SMOOTH_STEERING_ANGLE_THRESHOLD = 15
     MAX_STEERING_ANGLE = 30
-    REWARD_MAX =  9000 ## 10000
+    REWARD_MAX =  100
     MAX_SPEED = float(3.0)
     MIN_SPEED = float(1.5)
     REWARD_MIN = 1e-3
@@ -54,47 +54,41 @@ def reward_function(params):
     track_direction = math.degrees(track_direction)
     heading = params["heading"]
     
-    ## check if the car is in the turn 
-    angle_ahead = get_angle_between_waypoints(get_waypoint(waypoints,nearest_prev_waypoint_indx),get_waypoint(waypoints,nearest_prev_waypoint_indx+1))
-    angle_behind = get_angle_between_waypoints(get_waypoint(waypoints,nearest_prev_waypoint_indx-1),get_waypoint(waypoints,nearest_prev_waypoint_indx))
-    diff = (angle_ahead - angle_behind)
-    turn_angle = diff +360 if diff < -90 and diff > 90 else (-180 + (diff-180) if diff > 180 else ( 180 - (diff+180) if diff < -180 else diff ))
-    
-    dx = distance_from_center - car_x
-    dy = distance_from_center - car_y
-    
-   
-    
+    steering = abs(params['steering_angle'])
     ## case no reward reward_function
     """
     When car is crash or bad behavior, track_car_direction is wrong or is_reversed is true or speed is very high
-    
     """
-    if not (all_wheels_on_track or is_reversed or speed < (0.1 * MAX_SPEED)):
-        return float(REWARD_MIN)
-        
-    ## we are heading in the right direction, no bad steering,
-    threshold_heading_alignment = 10
-    if abs(track_direction - heading) < threshold_heading_alignment:
-        return REWARD_MAX * 0.30
-        
-    ## if steering angle is less than SMOOTH_STEERING_ANGLE_THRESHOLD - 
-    if steering_angle < SMOOTH_STEERING_ANGLE_THRESHOLD:
-        return REWARD_MAX * 0.15
-  
+    reward = float(REWARD_MIN)
+    w1 = 5
+    w2 = 0.5
 
-    ## Optimum speed and is in turn 
-    if turn_angle < 3 and speed <  MAX_STEERING_ANGLE*0.67:
-        return REWARD_MAX * 0.6
+    ## off the track
+    if not (all_wheels_on_track or is_reversed):
+        reward = -10 - w1 * speed
+        
+    ## on the track
+    marker_1 = 0.1 * track_width
+    marker_2 = 0.25 * track_width
+    marker_3 = 0.5 * track_width
+
+    if distance_from_center >= 0.0 and distance_from_center <= marker_1:
+        reward = 1 + w2 * speed
     
-    ## if progress well
-    TOTAL_NUM_STEPS = 150
-    if steps % 100 == 0 and progress >  (steps/TOTAL_NUM_STEPS):
-        return REWARD_MAX * 0.4
+    elif distance_from_center <= marker_2:
+        reward = 0.5 + w2 * speed
+    elif distance_from_center <= marker_3:
+        reward = 0.1 + w2 * speed
     
-    ## car has reached the final waypoint 
-    if nearest_prev_waypoint_indx == len(waypoints)-1:
-        print("Reached target")
-        return REWARD_MAX
-    
-    
+    ## prevent zigzag
+
+    # Steering penality threshold, change the number based on your action space setting
+    ABS_STEERING_THRESHOLD = 15
+
+    # Penalize reward if the agent is steering too much
+    if steering > ABS_STEERING_THRESHOLD:
+        reward = 0.8 + w2 * speed
+
+    return reward
+        
+
