@@ -52,7 +52,7 @@ def reward_function(params):
     ## check the direction of the car
     track_direction = get_angle_between_waypoints(previous_point,next_point)
     track_direction = math.degrees(track_direction)
-    heading_direction = params["heading"]
+    heading = params["heading"]
     
     ## check if the car is in the turn 
     angle_ahead = get_angle_between_waypoints(get_waypoint(waypoints,nearest_prev_waypoint_indx),get_waypoint(waypoints,nearest_prev_waypoint_indx+1))
